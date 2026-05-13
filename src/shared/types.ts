@@ -17,9 +17,15 @@ export interface TranslateResponse {
   };
 }
 
+export type TranslateMode = "bilingual" | "chinese-only";
+
 export type MessageAction =
-  | { type: "TRANSLATE_PAGE" }
+  | { type: "TRANSLATE_PAGE"; mode?: TranslateMode }
   | { type: "RESTORE_PAGE" }
   | { type: "TRANSLATE_BATCH"; paragraphs: string[] }
   | { type: "GET_CONFIG" }
-  | { type: "TRANSLATION_COMPLETE"; usage: TranslateResponse["usage"] };
+  | { type: "TRANSLATION_COMPLETE"; usage: TranslateResponse["usage"] }
+  | { type: "SAVE_CACHE"; url: string; entries: { original: string; translation: string }[] }
+  | { type: "GET_CACHE"; url: string }
+  | { type: "CLEAR_CACHE" }
+  | { type: "GET_CACHE_SIZE" };

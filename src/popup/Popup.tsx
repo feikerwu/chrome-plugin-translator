@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import type { TranslatorConfig, MessageAction } from "../shared/types";
+import type { TranslatorConfig, MessageAction, TranslateMode } from "../shared/types";
 
 export default function Popup() {
   const [config, setConfig] = useState<TranslatorConfig | null>(null);
   const [status, setStatus] = useState<string>("");
+  const [cacheSize, setCacheSize] = useState<number>(0);
 
   useEffect(() => {
     chrome.runtime.sendMessage(
@@ -12,9 +13,15 @@ export default function Popup() {
         if (response?.data) setConfig(response.data);
       }
     );
+    chrome.runtime.sendMessage(
+      { type: "GET_CACHE_SIZE" } as MessageAction,
+      (response) => {
+        if (response?.data !== undefined) setCacheSize(response.data);
+      }
+    );
   }, []);
 
-  const handleTranslate = async () => {
+  const handleTranslate = async (mode: TranslateMode) => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) return;
 
@@ -31,7 +38,7 @@ export default function Popup() {
 
     setStatus("翻译中...");
 
-    chrome.tabs.sendMessage(tab.id, { type: "TRANSLATE_PAGE" } as MessageAction, () => {
+    chrome.tabs.sendMessage(tab.id, { type: "TRANSLATE_PAGE", mode } as MessageAction, () => {
       if (chrome.runtime.lastError) {
         setStatus(`错误: ${chrome.runtime.lastError.message}`);
       } else {
@@ -54,6 +61,13 @@ export default function Popup() {
     });
   };
 
+  const handleClearCache = () => {
+    chrome.runtime.sendMessage({ type: "CLEAR_CACHE" } as MessageAction, () => {
+      setCacheSize(0);
+      setStatus("缓存已清除");
+    });
+  };
+
   const openOptions = () => {
     chrome.runtime.openOptionsPage();
   };
@@ -71,6 +85,7 @@ export default function Popup() {
           <>
             <div>模型: {config.model || "未设置"}</div>
             <div>API: {config.apiKey ? "已配置" : "未配置"}</div>
+            <div>缓存: {cacheSize} 个页面</div>
           </>
         ) : (
           <div>加载中...</div>
@@ -83,23 +98,40 @@ export default function Popup() {
         </div>
       )}
 
-      <button
-        onClick={handleTranslate}
-        disabled={!isConfigured}
-        style={{
-          width: "100%",
-          padding: "10px 0",
-          backgroundColor: isConfigured ? "#4a90d9" : "#ccc",
-          color: "#fff",
-          border: "none",
-          borderRadius: 6,
-          fontSize: 14,
-          cursor: isConfigured ? "pointer" : "not-allowed",
-          marginBottom: 8,
-        }}
-      >
-        翻译当前页面 (英→中)
-      </button>
+      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+        <button
+          onClick={() => handleTranslate("bilingual")}
+          disabled={!isConfigured}
+          style={{
+            flex: 1,
+            padding: "10px 0",
+            backgroundColor: isConfigured ? "#4a90d9" : "#ccc",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            fontSize: 13,
+            cursor: isConfigured ? "pointer" : "not-allowed",
+          }}
+        >
+          双语翻译
+        </button>
+        <button
+          onClick={() => handleTranslate("chinese-only")}
+          disabled={!isConfigured}
+          style={{
+            flex: 1,
+            padding: "10px 0",
+            backgroundColor: isConfigured ? "#2ecc71" : "#ccc",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            fontSize: 13,
+            cursor: isConfigured ? "pointer" : "not-allowed",
+          }}
+        >
+          仅中文
+        </button>
+      </div>
 
       <button
         onClick={handleRestore}
@@ -116,6 +148,24 @@ export default function Popup() {
         }}
       >
         还原页面
+      </button>
+
+      <button
+        onClick={handleClearCache}
+        disabled={cacheSize === 0}
+        style={{
+          width: "100%",
+          padding: "10px 0",
+          backgroundColor: cacheSize > 0 ? "#e74c3c" : "#ccc",
+          color: "#fff",
+          border: "none",
+          borderRadius: 6,
+          fontSize: 14,
+          cursor: cacheSize > 0 ? "pointer" : "not-allowed",
+          marginBottom: 8,
+        }}
+      >
+        清除缓存 ({cacheSize})
       </button>
 
       <button
