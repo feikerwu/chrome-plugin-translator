@@ -4,10 +4,6 @@ export interface TranslatorConfig {
   model: string;
 }
 
-export interface TranslateRequest {
-  paragraphs: string[];
-}
-
 export interface TranslateResponse {
   translations: string[];
   usage: {
@@ -24,7 +20,6 @@ export type MessageAction =
   | { type: "RESTORE_PAGE" }
   | { type: "TRANSLATE_BATCH"; paragraphs: string[] }
   | { type: "GET_CONFIG" }
-  | { type: "TRANSLATION_COMPLETE"; usage: TranslateResponse["usage"] }
   | { type: "SAVE_CACHE"; url: string; entries: { original: string; translation: string }[] }
   | { type: "GET_CACHE"; url: string }
   | { type: "CLEAR_CACHE" }

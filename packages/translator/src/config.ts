@@ -1,3 +1,4 @@
+import { getStorageItem, setStorageItem } from "@chrome-plugins/shared";
 import type { TranslatorConfig } from "./types";
 
 const STORAGE_KEY = "translator_config";
@@ -9,10 +10,9 @@ const DEFAULT_CONFIG: TranslatorConfig = {
 };
 
 export async function getConfig(): Promise<TranslatorConfig> {
-  const result = await chrome.storage.local.get(STORAGE_KEY);
-  return (result[STORAGE_KEY] as TranslatorConfig | undefined) ?? DEFAULT_CONFIG;
+  return getStorageItem(STORAGE_KEY, DEFAULT_CONFIG);
 }
 
 export async function saveConfig(config: TranslatorConfig): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEY]: config });
+  await setStorageItem(STORAGE_KEY, config);
 }

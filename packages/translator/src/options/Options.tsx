@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { TranslatorConfig } from "../shared/types";
-import { getConfig, saveConfig } from "../shared/storage";
+import type { TranslatorConfig } from "../types";
+import { getConfig, saveConfig } from "../config";
 
 export default function Options() {
   const [config, setConfig] = useState<TranslatorConfig>({

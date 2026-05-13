@@ -1,7 +1,9 @@
-import { getConfig } from "../shared/storage";
-import { translateBatch } from "../shared/api";
-import { getPageCache, setPageCache, clearCache, getCacheSize } from "../shared/cache";
-import type { MessageAction } from "../shared/types";
+import { LRUCache } from "@chrome-plugins/shared";
+import { getConfig } from "../config";
+import { translateBatch } from "../api";
+import type { MessageAction } from "../types";
+
+const cache = new LRUCache<{ original: string; translation: string }[]>("translator");
 
 chrome.commands.onCommand.addListener((command, tab) => {
   if (command === "toggle-translate" && tab?.id) {
@@ -33,22 +35,22 @@ chrome.runtime.onMessage.addListener((message: MessageAction, _sender, sendRespo
   }
 
   if (message.type === "SAVE_CACHE") {
-    setPageCache(message.url, message.entries).then(() => sendResponse({ ok: true }));
+    cache.set(message.url, message.entries).then(() => sendResponse({ ok: true }));
     return true;
   }
 
   if (message.type === "GET_CACHE") {
-    getPageCache(message.url).then((cache) => sendResponse({ data: cache }));
+    cache.get(message.url).then((data) => sendResponse({ data }));
     return true;
   }
 
   if (message.type === "CLEAR_CACHE") {
-    clearCache().then(() => sendResponse({ ok: true }));
+    cache.clear().then(() => sendResponse({ ok: true }));
     return true;
   }
 
   if (message.type === "GET_CACHE_SIZE") {
-    getCacheSize().then((size) => sendResponse({ data: size }));
+    cache.size().then((size) => sendResponse({ data: size }));
     return true;
   }
 });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { TranslatorConfig, MessageAction, TranslateMode } from "../shared/types";
+import type { TranslatorConfig, MessageAction, TranslateMode } from "../types";
 
 export default function Popup() {
   const [config, setConfig] = useState<TranslatorConfig | null>(null);

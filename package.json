@@ -1,17 +1,15 @@
 {
-  "name": "chrome-plugin-translator",
+  "name": "chrome-plugins",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "build": "npm -w @chrome-plugins/translator run build",
+    "build:translator": "npm -w @chrome-plugins/translator run build",
+    "lint": "npm -w @chrome-plugins/translator run lint"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
