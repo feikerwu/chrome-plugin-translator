@@ -2,6 +2,7 @@ import { LRUCache } from "@chrome-plugins/shared";
 import { getTranslatorConfig, getTwitterConfig, saveTwitterConfig } from "../config";
 import { translateBatch } from "../api";
 import type { MessageAction } from "../types";
+import "./dev-reload";
 
 const cache = new LRUCache<{ original: string; translation: string }[]>("translator");
 
@@ -87,7 +88,7 @@ function notifyTwitterTabs(config: unknown) {
         chrome.tabs.sendMessage(tab.id, {
           type: "TWITTER_CONFIG_UPDATED",
           config,
-        } as MessageAction);
+        } as MessageAction).catch(() => {});
       }
     }
   });

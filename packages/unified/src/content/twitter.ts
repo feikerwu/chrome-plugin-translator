@@ -1,9 +1,20 @@
-import type { TwitterBlockerConfig, MessageAction } from "../types";
-import { DEFAULT_TWITTER_CONFIG } from "../types";
+interface TwitterBlockerConfig {
+  enabled: boolean;
+  blockTweetImages: boolean;
+  blockAvatars: boolean;
+  blockCards: boolean;
+}
+
+const DEFAULT_CONFIG: TwitterBlockerConfig = {
+  enabled: true,
+  blockTweetImages: true,
+  blockAvatars: false,
+  blockCards: true,
+};
 
 const STYLE_ID = "twitter-image-blocker-style";
 
-let currentConfig: TwitterBlockerConfig = DEFAULT_TWITTER_CONFIG;
+let currentConfig: TwitterBlockerConfig = DEFAULT_CONFIG;
 
 function buildCSS(config: TwitterBlockerConfig): string {
   if (!config.enabled) return "";
@@ -12,56 +23,61 @@ function buildCSS(config: TwitterBlockerConfig): string {
 
   if (config.blockTweetImages) {
     rules.push(`
-      [data-testid="tweetPhoto"],
+      [data-testid="tweetPhoto"] {
+        display: none !important;
+      }
       [data-testid="tweetPhoto"] img,
+      [data-testid="tweetPhoto"] video {
+        display: none !important;
+      }
       article img[src*="pbs.twimg.com/media"],
-      [data-testid="videoPlayer"],
-      [data-testid="previewInterstitial"]
+      article img[src*="pbs.twimg.com/ext_tw_video_thumb"],
+      article img[src*="pbs.twimg.com/amplify_video_thumb"],
+      article img[src*="pbs.twimg.com/tweet_video_thumb"] {
+        display: none !important;
+      }
+      [data-testid="videoPlayer"] {
+        display: none !important;
+      }
+      [data-testid="previewInterstitial"] {
+        display: none !important;
+      }
+      article [aria-label*="Image"],
+      article [aria-label*="image"],
+      article [aria-label*="Photo"],
+      article [aria-label*="photo"] {
+        display: none !important;
+      }
+      article a[href*="/photo/"] > div {
+        display: none !important;
+      }
     `);
   }
 
   if (config.blockAvatars) {
     rules.push(`
       [data-testid="UserAvatar"] img,
-      img[src*="profile_images"]
+      img[src*="profile_images"],
+      [data-testid="UserAvatar-Container"] img {
+        display: none !important;
+      }
     `);
   }
 
   if (config.blockCards) {
     rules.push(`
       [data-testid="card.wrapper"] img,
-      [data-testid="card.layoutLarge.media"] img,
-      [data-testid="card.layoutSmall.media"] img
+      [data-testid="card.layoutLarge.media"],
+      [data-testid="card.layoutSmall.media"],
+      [data-testid="card.wrapper"] [data-testid*="media"] {
+        display: none !important;
+      }
     `);
   }
 
   if (rules.length === 0) return "";
 
-  return `${rules.join(",\n")} {
-    visibility: hidden !important;
-    min-height: 0 !important;
-    max-height: 48px !important;
-    overflow: hidden !important;
-  }
-
-  ${config.blockTweetImages ? `
-    [data-testid="tweetPhoto"] {
-      position: relative !important;
-    }
-    [data-testid="tweetPhoto"]::after {
-      content: "图片已屏蔽";
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #f0f0f0;
-      color: #999;
-      font-size: 14px;
-      visibility: visible !important;
-      max-height: none !important;
-    }
-  ` : ""}`;
+  return rules.join("\n");
 }
 
 function applyStyles(config: TwitterBlockerConfig) {
@@ -83,16 +99,24 @@ function applyStyles(config: TwitterBlockerConfig) {
   styleEl.textContent = css;
 }
 
-chrome.runtime.sendMessage({ type: "GET_TWITTER_CONFIG" } as MessageAction, (response) => {
-  if (response?.data) {
-    applyStyles(response.data);
-  } else {
-    applyStyles(DEFAULT_TWITTER_CONFIG);
+function loadConfig() {
+  try {
+    chrome.runtime.sendMessage({ type: "GET_TWITTER_CONFIG" }, (response) => {
+      if (chrome.runtime.lastError) {
+        setTimeout(loadConfig, 500);
+        return;
+      }
+      applyStyles(response?.data ?? DEFAULT_CONFIG);
+    });
+  } catch {
+    setTimeout(loadConfig, 500);
   }
-});
+}
 
-chrome.runtime.onMessage.addListener((message: MessageAction, _sender, sendResponse) => {
-  if (message.type === "TWITTER_CONFIG_UPDATED") {
+loadConfig();
+
+chrome.runtime.onMessage.addListener((message: { type: string; config?: TwitterBlockerConfig }, _sender, sendResponse) => {
+  if (message.type === "TWITTER_CONFIG_UPDATED" && message.config) {
     applyStyles(message.config);
     sendResponse({ ok: true });
   }

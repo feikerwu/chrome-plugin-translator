@@ -11,6 +11,10 @@
     "build:translator": "npm -w @chrome-plugins/translator run build",
     "build:twitter": "npm -w @chrome-plugins/twitter-image-blocker run build",
     "build:unified": "npm -w @chrome-plugins/unified run build",
+    "dev": "node scripts/dev.mjs unified",
+    "dev:translator": "node scripts/dev.mjs translator",
+    "dev:twitter": "node scripts/dev.mjs twitter-image-blocker",
+    "dev:unified": "node scripts/dev.mjs unified",
     "lint": "npm --workspaces run lint"
   },
   "devDependencies": {
@@ -26,6 +30,7 @@
     "globals": "^17.5.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "ws": "^8.20.1"
   }
 }
