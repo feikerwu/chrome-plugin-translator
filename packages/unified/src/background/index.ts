@@ -2,7 +2,9 @@ import { LRUCache } from "@chrome-plugins/shared";
 import { getTranslatorConfig, getTwitterConfig, saveTwitterConfig } from "../config";
 import { translateBatch } from "../api";
 import type { MessageAction } from "../types";
-import "./dev-reload";
+if (import.meta.env.DEV) {
+  import("./dev-reload");
+}
 
 const cache = new LRUCache<{ original: string; translation: string }[]>("translator");
 

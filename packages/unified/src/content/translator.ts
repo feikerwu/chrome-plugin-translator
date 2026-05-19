@@ -19,17 +19,33 @@ const FLOAT_ID = "ai-translator-float";
 let isTranslated = false;
 
 function getTranslatableElements(): HTMLElement[] {
-  const blockSelectors = "p, h1, h2, h3, h4, h5, h6, li, td, th, blockquote, figcaption, dt, dd";
-  const elements = document.querySelectorAll<HTMLElement>(blockSelectors);
-  return Array.from(elements).filter((el) => {
+  const blockSelectors = "p, h1, h2, h3, h4, h5, h6, li, td, th, blockquote, figcaption, dt, dd, article, section, div, span, pre, code, em, strong, a, label, summary, details, caption";
+  const leafSelectors = "p, h1, h2, h3, h4, h5, h6, li, td, th, blockquote, figcaption, dt, dd, pre, code";
+
+  const candidates = document.querySelectorAll<HTMLElement>(blockSelectors);
+  const results: HTMLElement[] = [];
+  const seen = new WeakSet<Node>();
+
+  for (const el of candidates) {
     const text = el.innerText.trim();
-    if (!text || text.length < 2) return false;
-    if (el.closest(`.${TRANSLATED_CLASS}`)) return false;
-    if (el.hasAttribute(ORIGINAL_ATTR)) return false;
-    if (el.querySelector(blockSelectors)) return false;
-    const englishRatio = (text.match(/[a-zA-Z]/g)?.length ?? 0) / text.length;
-    return englishRatio > 0.5;
-  });
+    if (!text || text.length < 2) continue;
+    if (el.closest(`.${TRANSLATED_CLASS}`)) continue;
+    if (el.hasAttribute(ORIGINAL_ATTR)) continue;
+    if (seen.has(el)) continue;
+
+    const hasLeafChild = el.querySelector(leafSelectors);
+    if (hasLeafChild) continue;
+
+    const englishChars = text.match(/[a-zA-Z]/g)?.length ?? 0;
+    if (englishChars < 3) continue;
+    const ratio = englishChars / text.replace(/\s/g, "").length;
+    if (ratio < 0.3) continue;
+
+    results.push(el);
+    seen.add(el);
+  }
+
+  return results;
 }
 
 function insertTranslation(element: HTMLElement, translation: string, mode: TranslateMode) {

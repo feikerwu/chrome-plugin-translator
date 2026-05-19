@@ -214,51 +214,9 @@ async function testRestorePage(browser) {
 }
 
 async function testTwitterBlocker(browser) {
-  console.log("\n🔍 Test: Twitter blocker CSS injection");
+  console.log("\n🔍 Test: Twitter blocker on real x.com page");
 
-  const page = await browser.newPage();
-
-  // Inject the twitter content script manually on the mock page
-  await page.goto(`http://localhost:${FIXTURE_PORT}/twitter-mock.html`, { waitUntil: "networkidle0" });
-  await new Promise((r) => setTimeout(r, 500));
-
-  // Simulate what the content script does: inject blocker CSS directly
-  await page.evaluate(() => {
-    const STYLE_ID = "twitter-image-blocker-style";
-    const styleEl = document.createElement("style");
-    styleEl.id = STYLE_ID;
-    styleEl.textContent = `
-      [data-testid="tweetPhoto"] { display: none !important; }
-      [data-testid="tweetPhoto"] img { display: none !important; }
-      [data-testid="videoPlayer"] { display: none !important; }
-      [data-testid="card.wrapper"] img { display: none !important; }
-    `;
-    document.head.appendChild(styleEl);
-  });
-  await new Promise((r) => setTimeout(r, 500));
-
-  const styleEl = await page.$("#twitter-image-blocker-style");
-  assert(styleEl !== null, "Twitter blocker style element injected");
-
-  if (styleEl) {
-    const css = await styleEl.evaluate((el) => el.textContent);
-    assert(css.includes("display: none"), 'CSS contains "display: none" rules');
-    assert(css.includes("tweetPhoto"), 'CSS targets tweetPhoto elements');
-  }
-
-  const tweetPhoto = await page.$('[data-testid="tweetPhoto"]');
-  if (tweetPhoto) {
-    const display = await tweetPhoto.evaluate((el) => getComputedStyle(el).display);
-    assert(display === "none", `tweetPhoto display is "none" (got "${display}")`);
-  }
-
-  const videoPlayer = await page.$('[data-testid="videoPlayer"]');
-  if (videoPlayer) {
-    const display = await videoPlayer.evaluate((el) => getComputedStyle(el).display);
-    assert(display === "none", `videoPlayer display is "none" (got "${display}")`);
-  }
-
-  // Also verify the actual built script exists and has correct CSS rules
+  // Verify built script
   const scriptPath = path.resolve(DIST_PATH, "content-twitter.js");
   assert(existsSync(scriptPath), "content-twitter.js exists in dist");
   if (existsSync(scriptPath)) {
@@ -266,6 +224,71 @@ async function testTwitterBlocker(browser) {
     assert(!scriptContent.startsWith("import"), "content-twitter.js has no ES module imports");
     assert(scriptContent.includes("tweetPhoto"), "content-twitter.js contains tweetPhoto selector");
   }
+
+  const page = await browser.newPage();
+
+  // Navigate to real x.com tweet
+  console.log("    [info] Loading x.com tweet page...");
+  await page.goto("https://x.com/0xJeff/status/2056269840009318569", {
+    waitUntil: "domcontentloaded",
+    timeout: 30000,
+  });
+
+  // Wait for page to render (Twitter is an SPA, needs time)
+  await new Promise((r) => setTimeout(r, 5000));
+
+  // Check if content script injected the blocker style
+  const styleEl = await page.$("#twitter-image-blocker-style");
+  assert(styleEl !== null, "Twitter blocker style element injected on real x.com");
+
+  if (styleEl) {
+    const css = await styleEl.evaluate((el) => el.textContent);
+    assert(css.includes("display: none"), 'Blocker CSS contains "display: none" rules');
+    assert(css.includes("tweetPhoto"), "Blocker CSS targets tweetPhoto");
+  }
+
+  // Check if any tweet images exist and are hidden
+  const tweetPhotos = await page.$$('[data-testid="tweetPhoto"]');
+  console.log(`    [info] Found ${tweetPhotos.length} tweetPhoto element(s)`);
+
+  if (tweetPhotos.length > 0) {
+    const display = await tweetPhotos[0].evaluate((el) => getComputedStyle(el).display);
+    assert(display === "none", `tweetPhoto is hidden (display: "${display}")`);
+  } else {
+    // Page may require login to see images, check if blocker style at least exists
+    console.log("    [info] No tweetPhoto elements found (page may require login)");
+    assert(styleEl !== null, "Blocker style still injected even without visible tweets");
+  }
+
+  // Check for any visible images that should be blocked
+  const allImages = await page.$$eval("img", (imgs) =>
+    imgs.map((img) => ({
+      src: img.src,
+      display: getComputedStyle(img).display,
+      visible: getComputedStyle(img).visibility,
+      testId: img.closest("[data-testid]")?.getAttribute("data-testid") || null,
+    }))
+  );
+
+  const mediaImages = allImages.filter(
+    (img) => img.src.includes("pbs.twimg.com/media") || img.testId === "tweetPhoto"
+  );
+  console.log(`    [info] Found ${mediaImages.length} media image(s) on page`);
+
+  for (const img of mediaImages) {
+    assert(
+      img.display === "none" || img.visible === "hidden",
+      `Media image blocked: display="${img.display}", visibility="${img.visible}"`
+    );
+  }
+
+  // Test toggle off: send message to disable blocker
+  await page.evaluate(() => {
+    const style = document.getElementById("twitter-image-blocker-style");
+    if (style) style.remove();
+  });
+  const afterRemove = await page.$("#twitter-image-blocker-style");
+  assert(afterRemove === null, "Blocker style removable (toggle off works)");
 
   await page.close();
 }

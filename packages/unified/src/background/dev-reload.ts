@@ -1,5 +1,4 @@
 const WS_URL = "ws://localhost:8976";
-const RETRY_INTERVAL = 3000;
 
 function connect() {
   try {
@@ -16,15 +15,10 @@ function connect() {
       }
     };
 
-    ws.onclose = () => {
-      setTimeout(connect, RETRY_INTERVAL);
-    };
-
-    ws.onerror = () => {
-      ws.close();
-    };
+    ws.onclose = () => {};
+    ws.onerror = () => { ws.close(); };
   } catch {
-    setTimeout(connect, RETRY_INTERVAL);
+    // dev server not running, do nothing
   }
 }
 
